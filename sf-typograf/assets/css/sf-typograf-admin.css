@@ -223,8 +223,25 @@ body.sf-tg-modal-open {
 	opacity: 0.55;
 }
 
-.sf-tg-hide-unchanged .sf-tg-unchanged {
+.sf-tg-hide-unchanged .sf-tg-unchanged,
+.sf-tg-hide-unchanged .sf-tg-empty-value {
 	display: none;
+}
+
+.sf-tg-diagnostics {
+	margin: 0;
+	padding: 12px 16px;
+	border-bottom: 1px solid #dcdcde;
+	background: #fcf9e8;
+	color: #664d03;
+}
+
+.sf-tg-diagnostics p {
+	margin: 0 0 6px;
+}
+
+.sf-tg-diagnostics p:last-child {
+	margin-bottom: 0;
 }
 
 .sf-tg-footer {

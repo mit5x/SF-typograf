@@ -144,6 +144,9 @@ class SF_Typograf_Admin {
 					'acfField'      => __( 'Поле ACF', 'sF-typograf' ),
 					'statesSaved'   => __( 'Выбор полей сохранён для этой страницы.', 'sF-typograf' ),
 					'legend'        => __( '· и &nbsp; — неразрывный пробел', 'sF-typograf' ),
+					'noEditorFound' => __( 'Контент редактора WordPress на этом экране не найден: возможно, редактор отключён для этого типа записи или содержимое хранится только в полях ACF.', 'sF-typograf' ),
+					'noTitleFound'  => __( 'Поле заголовка на этом экране не найдено.', 'sF-typograf' ),
+					'noAcfFields'   => __( 'Поля ACF на этом экране не найдены.', 'sF-typograf' ),
 				),
 			)
 		);

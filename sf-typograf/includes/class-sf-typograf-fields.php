@@ -50,7 +50,7 @@ class SF_Typograf_Fields {
 	 * @return array|false
 	 */
 	public static function get_acf_field( $key ) {
-		if ( ! self::acf_active() || ! is_string( $key ) || ! preg_match( '/^field_[A-Za-z0-9]+$/', $key ) ) {
+		if ( ! self::acf_active() || ! is_string( $key ) || ! preg_match( '/^field_[A-Za-z0-9_\-]+$/', $key ) ) {
 			return false;
 		}
 
@@ -62,20 +62,31 @@ class SF_Typograf_Fields {
 	/**
 	 * Проверяет, что тип поля ACF разрешён к обработке.
 	 *
-	 * @param string $key Ключ поля.
+	 * @param string $key         Ключ поля.
+	 * @param string $client_type Тип поля по данным браузера (используется только
+	 *                            как запасной вариант, если поле не найдено в ACF
+	 *                            и включён фильтр sf_typograf_trust_client_field_type).
 	 * @return true|WP_Error
 	 */
-	public static function check_acf_field( $key ) {
+	public static function check_acf_field( $key, $client_type = '' ) {
 		if ( ! self::acf_active() ) {
 			return new WP_Error( 'sf_typograf_no_acf', __( 'ACF не активен.', 'sF-typograf' ) );
 		}
 
 		$field = self::get_acf_field( $key );
 
+		if ( ! $field && self::trust_client_type() && in_array( $client_type, self::allowed_acf_types(), true ) ) {
+			return true;
+		}
+
 		if ( ! $field ) {
 			return new WP_Error(
 				'sf_typograf_unknown_field',
-				__( 'Тип поля не подтверждён — поле пропущено.', 'sF-typograf' )
+				sprintf(
+					/* translators: %s: ключ поля ACF. */
+					__( 'Поле %s не найдено в ACF — тип не подтверждён, поле пропущено.', 'sF-typograf' ),
+					$key
+				)
 			);
 		}
 
@@ -91,6 +102,24 @@ class SF_Typograf_Fields {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Разрешено ли доверять типу поля, присланному браузером.
+	 *
+	 * По умолчанию нет: тип поля всегда перепроверяется на сервере через
+	 * acf_get_field(). Фильтр нужен для нестандартных сборок, где поле
+	 * не удаётся найти по ключу.
+	 *
+	 * @return bool
+	 */
+	public static function trust_client_type() {
+		/**
+		 * Фильтр доверия типу поля из браузера.
+		 *
+		 * @param bool $trust По умолчанию false.
+		 */
+		return (bool) apply_filters( 'sf_typograf_trust_client_field_type', false );
 	}
 
 	/**
@@ -155,6 +184,20 @@ class SF_Typograf_Fields {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Приводит идентификатор поля к ключу, под которым хранится состояние чекбокса.
+	 *
+	 * Номера строк повторителей и гибкого контента выбрасываются: исключается
+	 * поле целиком, а не конкретная строка. Иначе добавление или перестановка
+	 * строк сдвигала бы сохранённый выбор на соседние поля.
+	 *
+	 * @param string $id Идентификатор поля (имя input).
+	 * @return string
+	 */
+	public static function state_key( $id ) {
+		return preg_replace( '/\[(?:row-)?\d+\]/', '[]', (string) $id );
 	}
 
 	/**

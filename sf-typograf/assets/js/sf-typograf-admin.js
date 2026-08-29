@@ -19,36 +19,98 @@
 	 * Определение редактора
 	 * -------------------------------------------------------------- */
 
+	/**
+	 * Textarea классического редактора, если он на экране.
+	 *
+	 * @return {HTMLElement|null}
+	 */
+	function classicContentEl() {
+		var el = document.getElementById('content');
+		if (el && el.tagName === 'TEXTAREA') {
+			return el;
+		}
+
+		return document.querySelector('textarea[name="content"]');
+	}
+
+	/**
+	 * Хранилище блочного редактора, если он на экране.
+	 *
+	 * @return {Object|null}
+	 */
+	function blockEditorStore() {
+		if (!window.wp || !wp.data || typeof wp.data.select !== 'function') {
+			return null;
+		}
+
+		var store;
+		try {
+			store = wp.data.select('core/editor');
+		} catch (e) {
+			return null;
+		}
+
+		if (!store || typeof store.getEditedPostContent !== 'function') {
+			return null;
+		}
+
+		return store;
+	}
+
 	function isBlockEditor() {
-		return !!(
-			window.wp &&
-			wp.data &&
-			typeof wp.data.select === 'function' &&
-			wp.data.select('core/editor') &&
-			typeof wp.data.select('core/editor').getEditedPostContent === 'function' &&
-			document.getElementById('editor')
-		);
+		return !classicContentEl() && !!blockEditorStore();
+	}
+
+	function tinymceEditor() {
+		if (!window.tinymce) {
+			return null;
+		}
+
+		var ed = tinymce.get('content');
+
+		return ed && !ed.isHidden() ? ed : null;
 	}
 
 	function getEditorContent() {
-		if (isBlockEditor()) {
-			return wp.data.select('core/editor').getEditedPostContent();
+		// Классический редактор: приоритетнее, потому что его textarea
+		// однозначно указывает на используемый экран редактирования.
+		var classic = classicContentEl();
+		if (classic) {
+			var ed = tinymceEditor();
+
+			return ed ? ed.getContent() : classic.value;
 		}
 
-		if (window.tinymce) {
-			var ed = tinymce.get('content');
-			if (ed && !ed.isHidden()) {
-				return ed.getContent();
+		var store = blockEditorStore();
+		if (store) {
+			try {
+				var content = store.getEditedPostContent();
+				if (typeof content === 'string') {
+					return content;
+				}
+			} catch (e) {
+				window.console && console.error('SF Typograf:', e);
 			}
 		}
 
-		var $textarea = $('#content');
-
-		return $textarea.length ? $textarea.val() : null;
+		return null;
 	}
 
 	function setEditorContent(value) {
-		if (isBlockEditor()) {
+		var classic = classicContentEl();
+		if (classic) {
+			var ed = tinymceEditor();
+			if (ed) {
+				ed.setContent(value);
+				ed.setDirty(true);
+				ed.fire('change');
+			}
+			$(classic).val(value).trigger('change');
+
+			return true;
+		}
+
+		if (blockEditorStore()) {
 			try {
 				var blocks = wp.blocks.parse(value);
 				var dispatcher = wp.data.dispatch('core/block-editor') || wp.data.dispatch('core/editor');
@@ -62,49 +124,34 @@
 			}
 		}
 
-		if (window.tinymce) {
-			var ed = tinymce.get('content');
-			if (ed && !ed.isHidden()) {
-				ed.setContent(value);
-				ed.setDirty(true);
-				ed.fire('change');
-				$('#content').val(value);
-
-				return true;
-			}
-		}
-
-		var $textarea = $('#content');
-		if ($textarea.length) {
-			$textarea.val(value).trigger('change');
-
-			return true;
-		}
-
 		return false;
 	}
 
 	function getPostTitle() {
-		if (isBlockEditor()) {
-			return wp.data.select('core/editor').getEditedPostAttribute('title');
+		var $title = $('#title');
+		if ($title.length) {
+			return $title.val();
 		}
 
-		var $title = $('#title');
+		var store = blockEditorStore();
+		if (store && typeof store.getEditedPostAttribute === 'function') {
+			return store.getEditedPostAttribute('title');
+		}
 
-		return $title.length ? $title.val() : null;
+		return null;
 	}
 
 	function setPostTitle(value) {
-		if (isBlockEditor()) {
-			wp.data.dispatch('core/editor').editPost({ title: value });
-
-			return true;
-		}
-
 		var $title = $('#title');
 		if ($title.length) {
 			$title.val(value).trigger('change');
 			$('#title-prompt-text').addClass('screen-reader-text');
+
+			return true;
+		}
+
+		if (blockEditorStore()) {
+			wp.data.dispatch('core/editor').editPost({ title: value });
 
 			return true;
 		}
@@ -193,6 +240,7 @@
 				id: name,
 				kind: 'acf',
 				fieldKey: key,
+				acfType: fieldEl.getAttribute('data-type'),
 				label: acfLabel(fieldEl) || name,
 				value: input.value,
 				el: input
@@ -202,7 +250,7 @@
 		return fields;
 	}
 
-	function collectFields() {
+	function collectFields(diagnostics) {
 		var fields = [];
 
 		if (data.processTitle) {
@@ -214,6 +262,8 @@
 					label: i18n.postTitle,
 					value: title
 				});
+			} else {
+				diagnostics.push(i18n.noTitleFound);
 			}
 		}
 
@@ -225,9 +275,18 @@
 				label: i18n.postContent,
 				value: content
 			});
+		} else {
+			// Контент не должен пропадать молча: объясняем администратору, почему.
+			diagnostics.push(i18n.noEditorFound);
 		}
 
-		return fields.concat(collectAcfFields());
+		var acfFields = collectAcfFields();
+
+		if (!acfFields.length && !document.querySelector('.acf-field')) {
+			diagnostics.push(i18n.noAcfFields);
+		}
+
+		return fields.concat(acfFields);
 	}
 
 	/* -----------------------------------------------------------------
@@ -529,6 +588,9 @@
 
 			if (row.skipped) {
 				$tr.addClass('sf-tg-skipped');
+				if (row.code === 'sf_typograf_empty') {
+					$tr.addClass('sf-tg-empty-value');
+				}
 			} else if (row.changed) {
 				$tr.addClass('sf-tg-changed');
 				changedCount++;
@@ -594,6 +656,19 @@
 		$body.append($table);
 	}
 
+	function renderDiagnostics(diagnostics) {
+		if (!diagnostics || !diagnostics.length) {
+			return;
+		}
+
+		var $list = $('<div class="sf-tg-diagnostics" />');
+		diagnostics.forEach(function (message) {
+			$('<p />').text(message).appendTo($list);
+		});
+
+		$modal.find('.sf-tg-body').prepend($list);
+	}
+
 	/* -----------------------------------------------------------------
 	 * Запрос и применение
 	 * -------------------------------------------------------------- */
@@ -606,7 +681,8 @@
 	}
 
 	function run() {
-		var fields = collectFields();
+		var diagnostics = [];
+		var fields = collectFields(diagnostics);
 
 		buildModal();
 		openModal();
@@ -615,7 +691,8 @@
 		setStatus('');
 
 		if (!fields.length) {
-			$modal.find('.sf-tg-body').html($('<p class="sf-tg-message" />').text(i18n.noFields));
+			$modal.find('.sf-tg-body').empty().append($('<p class="sf-tg-message" />').text(i18n.noFields));
+			renderDiagnostics(diagnostics);
 
 			return;
 		}
@@ -625,6 +702,7 @@
 				id: field.id,
 				kind: field.kind,
 				fieldKey: field.fieldKey || '',
+				acfType: field.acfType || '',
 				label: field.label || '',
 				value: field.value
 			};
@@ -658,6 +736,7 @@
 				});
 
 				renderRows();
+				renderDiagnostics(diagnostics);
 			})
 			.fail(function (xhr) {
 				var message = i18n.error;
@@ -702,8 +781,11 @@
 			}
 
 			// Пропущенные поля не влияют на сохранённый выбор.
+			// Строки повторителя делят один ключ: поле считается исключённым,
+			// только если сняты чекбоксы всех его строк.
 			if (!row.skipped) {
-				states[row.id] = this.checked ? 1 : 0;
+				var key = row.stateKey || row.id;
+				states[key] = (states[key] ? 1 : 0) || (this.checked ? 1 : 0);
 			}
 
 			if (this.checked && row.changed && !row.skipped) {

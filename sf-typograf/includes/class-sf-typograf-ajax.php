@@ -90,8 +90,11 @@ class SF_Typograf_Ajax {
 		$label = isset( $field['label'] ) ? sanitize_text_field( (string) $field['label'] ) : $id;
 		$value = isset( $field['value'] ) && is_string( $field['value'] ) ? $field['value'] : '';
 
+		$state_key = SF_Typograf_Fields::state_key( $id );
+
 		$row = array(
 			'id'        => $id,
+			'stateKey'  => $state_key,
 			'kind'      => $kind,
 			'label'     => $label,
 			'original'  => $value,
@@ -99,7 +102,8 @@ class SF_Typograf_Ajax {
 			'changed'   => false,
 			'skipped'   => false,
 			'reason'    => '',
-			'checked'   => SF_Typograf_Fields::is_checked( $states, $id ),
+			'code'      => '',
+			'checked'   => SF_Typograf_Fields::is_checked( $states, $state_key ),
 		);
 
 		if ( ! in_array( $kind, array( 'editor', 'title', 'acf' ), true ) ) {
@@ -109,24 +113,27 @@ class SF_Typograf_Ajax {
 		// Поля ACF: обрабатываем только «Текст» и «Область текста».
 		// Тип проверяется на сервере по ключу поля, а не по данным из браузера.
 		if ( 'acf' === $kind ) {
-			$key   = isset( $field['fieldKey'] ) ? sanitize_text_field( (string) $field['fieldKey'] ) : '';
-			$check = SF_Typograf_Fields::check_acf_field( $key );
+			$key         = isset( $field['fieldKey'] ) ? sanitize_text_field( (string) $field['fieldKey'] ) : '';
+			$client_type = isset( $field['acfType'] ) ? sanitize_key( $field['acfType'] ) : '';
+			$check       = SF_Typograf_Fields::check_acf_field( $key, $client_type );
 
 			if ( is_wp_error( $check ) ) {
 				$row['skipped'] = true;
 				$row['reason']  = $check->get_error_message();
+				$row['code']    = $check->get_error_code();
 
 				return $row;
 			}
 
 			$acf_field      = SF_Typograf_Fields::get_acf_field( $key );
-			$row['acfType'] = $acf_field['type'];
+			$row['acfType'] = $acf_field ? $acf_field['type'] : $client_type;
 		}
 
 		$check = SF_Typograf_Fields::check_value( $value );
 		if ( is_wp_error( $check ) ) {
 			$row['skipped'] = true;
 			$row['reason']  = $check->get_error_message();
+			$row['code']    = $check->get_error_code();
 
 			return $row;
 		}
@@ -146,6 +153,7 @@ class SF_Typograf_Ajax {
 		if ( is_wp_error( $processed ) ) {
 			$row['skipped'] = true;
 			$row['reason']  = $processed->get_error_message();
+			$row['code']    = $processed->get_error_code();
 
 			return $row;
 		}
