@@ -120,6 +120,7 @@ class SF_Typograf_Admin {
 				'postId'           => $post_id,
 				'allowedAcfTypes'  => array_values( SF_Typograf_Fields::allowed_acf_types() ),
 				'processTitle'     => (bool) $settings['process_title'],
+				'engine'           => $settings['engine'],
 				'i18n'             => array(
 					'modalTitle'    => __( 'Предпросмотр типографики', 'sF-typograf' ),
 					'colField'      => __( 'Поле', 'sF-typograf' ),
@@ -149,6 +150,8 @@ class SF_Typograf_Admin {
 					'noAcfFields'   => __( 'Поля ACF на этом экране не найдены.', 'sF-typograf' ),
 					'logTitle'      => __( 'Журнал обмена с веб-сервисом «Типограф»', 'sF-typograf' ),
 					'logEmpty'      => __( 'Обращений к веб-сервису не было.', 'sF-typograf' ),
+					'processing'    => __( 'Обработка поля', 'sF-typograf' ),
+					'logChanged'    => __( 'Изменено', 'sF-typograf' ),
 					'logRequest'    => __( 'Запрос', 'sF-typograf' ),
 					'logResponse'   => __( 'Ответ', 'sF-typograf' ),
 					'engineRemote'  => __( 'веб-сервис «Типограф»', 'sF-typograf' ),

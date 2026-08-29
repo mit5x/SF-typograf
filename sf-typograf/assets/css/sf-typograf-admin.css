@@ -228,6 +228,92 @@ body.sf-tg-modal-open {
 	display: none;
 }
 
+.sf-tg-progress {
+	padding: 20px 16px;
+}
+
+.sf-tg-progress-track {
+	height: 6px;
+	border-radius: 3px;
+	background: #dcdcde;
+	overflow: hidden;
+}
+
+.sf-tg-progress-fill {
+	display: block;
+	width: 0;
+	height: 100%;
+	background: #2271b1;
+	transition: width 0.2s ease-out;
+}
+
+.sf-tg-progress-fill.sf-tg-progress-failed {
+	background: #d63638;
+}
+
+.sf-tg-progress-label {
+	margin: 10px 0 0;
+	color: #50575e;
+}
+
+.sf-tg-progress-label.sf-tg-error {
+	color: #d63638;
+	font-weight: 600;
+}
+
+.sf-tg-live-log {
+	margin-top: 12px;
+	max-height: 320px;
+	overflow: auto;
+	padding: 10px 12px;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	background: #f6f7f7;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 12px;
+	line-height: 1.7;
+}
+
+.sf-tg-live-line {
+	padding-left: 8px;
+	border-left: 3px solid #c3c4c7;
+	word-break: break-word;
+}
+
+.sf-tg-live-line.sf-tg-log-ok {
+	border-left-color: #00a32a;
+}
+
+.sf-tg-live-line.sf-tg-log-cache {
+	border-left-color: #2271b1;
+}
+
+.sf-tg-live-line.sf-tg-log-local {
+	border-left-color: #8c8f94;
+}
+
+.sf-tg-live-line.sf-tg-log-skip {
+	border-left-color: #dba617;
+}
+
+.sf-tg-live-line.sf-tg-log-error {
+	border-left-color: #d63638;
+	color: #b32d2e;
+}
+
+.sf-tg-live-line.sf-tg-log-fallback {
+	border-left-color: #dba617;
+	color: #8a6d00;
+}
+
+.sf-tg-live-head {
+	font-weight: 600;
+}
+
+.sf-tg-live-sep {
+	color: #a7aaad;
+}
+
 .sf-tg-log {
 	margin: 0;
 	padding: 10px 16px;

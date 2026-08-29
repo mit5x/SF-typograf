@@ -2,7 +2,7 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: SF Typograf 1.1.0\n"
+"Project-Id-Version: SF Typograf 1.2.0\n"
 "Report-Msgid-Bugs-To: https://web-format.net\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -50,143 +50,151 @@ msgstr ""
 msgid "Исправит кавычки, тире, спецсимволы и привязки в контенте редактора и текстовых полях ACF. Перед применением покажет, что именно изменится."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:124
+#: includes/class-sf-typograf-admin.php:125
 msgid "Предпросмотр типографики"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:125
+#: includes/class-sf-typograf-admin.php:126
 msgid "Поле"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:126
+#: includes/class-sf-typograf-admin.php:127
 msgid "Текущее значение"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:127
+#: includes/class-sf-typograf-admin.php:128
 msgid "После типографа"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:128
+#: includes/class-sf-typograf-admin.php:129
 msgid "Применить"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:129
+#: includes/class-sf-typograf-admin.php:130
 msgid "Отмена"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:130
+#: includes/class-sf-typograf-admin.php:131
 msgid "Закрыть"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:131
+#: includes/class-sf-typograf-admin.php:132
 msgid "Отметить все"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:132
+#: includes/class-sf-typograf-admin.php:133
 msgid "Снять все"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:133
+#: includes/class-sf-typograf-admin.php:134
 msgid "Показывать только изменённые поля"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:134
+#: includes/class-sf-typograf-admin.php:135
 msgid "Обработка текста…"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:135
+#: includes/class-sf-typograf-admin.php:136
 msgid "Не найдено ни одного текстового поля для обработки."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:136
+#: includes/class-sf-typograf-admin.php:137
 msgid "Типографика уже в порядке: изменений нет."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:137
+#: includes/class-sf-typograf-admin.php:138
 msgid "Без изменений"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:138
+#: includes/class-sf-typograf-admin.php:139
 msgid "Пропущено"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:139
+#: includes/class-sf-typograf-admin.php:140
 msgid "Ошибка обработки"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:140
+#: includes/class-sf-typograf-admin.php:141
 msgid "Ничего не сохранено: значения только подставлены в поля формы."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:141
+#: includes/class-sf-typograf-admin.php:142
 msgid "Не отмечено ни одного поля."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:142
+#: includes/class-sf-typograf-admin.php:143
 msgid "Контент редактора"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:143
+#: includes/class-sf-typograf-admin.php:144
 msgid "Заголовок"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:144
+#: includes/class-sf-typograf-admin.php:145
 msgid "Поле ACF"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:145
+#: includes/class-sf-typograf-admin.php:146
 msgid "Выбор полей сохранён для этой страницы."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:146
+#: includes/class-sf-typograf-admin.php:147
 msgid "· и &nbsp; — неразрывный пробел"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:147
+#: includes/class-sf-typograf-admin.php:148
 msgid "Контент редактора WordPress на этом экране не найден: возможно, редактор отключён для этого типа записи или содержимое хранится только в полях ACF."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:148
+#: includes/class-sf-typograf-admin.php:149
 msgid "Поле заголовка на этом экране не найдено."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:149
+#: includes/class-sf-typograf-admin.php:150
 msgid "Поля ACF на этом экране не найдены."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:150
+#: includes/class-sf-typograf-admin.php:151
 msgid "Журнал обмена с веб-сервисом «Типограф»"
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:151
+#: includes/class-sf-typograf-admin.php:152
 msgid "Обращений к веб-сервису не было."
 msgstr ""
 
-#: includes/class-sf-typograf-admin.php:152
-msgid "Запрос"
-msgstr ""
-
 #: includes/class-sf-typograf-admin.php:153
-msgid "Ответ"
+msgid "Обработка поля"
 msgstr ""
 
 #: includes/class-sf-typograf-admin.php:154
-msgid "веб-сервис «Типограф»"
+msgid "Изменено"
 msgstr ""
 
 #: includes/class-sf-typograf-admin.php:155
-msgid "встроенный типограф"
+msgid "Запрос"
 msgstr ""
 
 #: includes/class-sf-typograf-admin.php:156
-msgid "Обработано: %s"
+msgid "Ответ"
 msgstr ""
 
 #: includes/class-sf-typograf-admin.php:157
-msgid "полей: %d"
+msgid "веб-сервис «Типограф»"
 msgstr ""
 
 #: includes/class-sf-typograf-admin.php:158
+msgid "встроенный типограф"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:159
+msgid "Обработано: %s"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:160
+msgid "полей: %d"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:161
 msgid "Изменено полей: %d. Значения подставлены в форму, но ещё не сохранены — нажмите «Обновить»."
 msgstr ""
 
@@ -313,11 +321,11 @@ msgstr ""
 msgid "Не удалось прочитать список полей."
 msgstr ""
 
-#: includes/class-sf-typograf-ajax.php:246
+#: includes/class-sf-typograf-ajax.php:252
 msgid "Поле обработано встроенным типографом, потому что веб-сервис недоступен."
 msgstr ""
 
-#: includes/class-sf-typograf-ajax.php:292
+#: includes/class-sf-typograf-ajax.php:302
 msgid "Не удалось прочитать состояния полей."
 msgstr ""
 

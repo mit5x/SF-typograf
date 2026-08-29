@@ -129,6 +129,7 @@ class SF_Typograf_Ajax {
 			'reason'    => '',
 			'code'      => '',
 			'engine'    => '',
+			'log'       => array(),
 			'checked'   => SF_Typograf_Fields::is_checked( $states, $state_key ),
 		);
 
@@ -177,6 +178,7 @@ class SF_Typograf_Ajax {
 		$result = $this->typograf( $value, $context, $label );
 
 		$row['engine'] = $result['engine'];
+		$row['log']    = $result['log'];
 		$processed     = $result['text'];
 
 		/**
@@ -206,10 +208,12 @@ class SF_Typograf_Ajax {
 	 * @return array {
 	 *     @type string $text   Обработанный текст.
 	 *     @type string $engine remote|local.
+	 *     @type array  $log    Записи журнала по этому полю.
 	 * }
 	 */
 	protected function typograf( $text, $context, $label = '' ) {
 		$settings = SF_Typograf_Settings::get();
+		$field_log = array();
 
 		if ( 'remote' === $settings['engine'] ) {
 			$remote = new SF_Typograf_Remote(
@@ -227,6 +231,7 @@ class SF_Typograf_Ajax {
 
 			foreach ( $remote->get_log() as $entry ) {
 				$entry['field'] = $label;
+				$field_log[]    = $entry;
 				$this->log[]    = $entry;
 			}
 
@@ -236,15 +241,19 @@ class SF_Typograf_Ajax {
 				return array(
 					'text'   => $result,
 					'engine' => 'remote',
+					'log'    => $field_log,
 				);
 			}
 
 			// Веб-сервис недоступен — доделываем встроенным типографом.
-			$this->log[] = array(
+			$fallback = array(
 				'field'   => $label,
 				'status'  => 'fallback',
 				'message' => __( 'Поле обработано встроенным типографом, потому что веб-сервис недоступен.', 'sF-typograf' ),
 			);
+
+			$field_log[] = $fallback;
+			$this->log[] = $fallback;
 		}
 
 		$engine = new SF_Typograf_Engine( SF_Typograf_Settings::engine_options() );
@@ -254,6 +263,7 @@ class SF_Typograf_Ajax {
 		return array(
 			'text'   => $engine->process( $text, $context ),
 			'engine' => 'local',
+			'log'    => $field_log,
 		);
 	}
 

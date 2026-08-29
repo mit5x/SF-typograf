@@ -562,6 +562,10 @@
 	}
 
 	function closeModal() {
+		if (runState) {
+			runState.aborted = true;
+		}
+
 		if ($modal) {
 			$modal.removeClass('is-open');
 		}
@@ -729,29 +733,13 @@
 		}
 
 		log.forEach(function (entry) {
-			var $entry = $('<div class="sf-tg-log-entry" />').addClass('sf-tg-log-' + (entry.status || 'ok'));
-			var head = [];
+			var parts = logLineParts(entry);
+			var $entry = $('<div class="sf-tg-log-entry" />').addClass('sf-tg-log-' + parts.status);
 
-			if (entry.field) {
-				head.push(entry.field);
-			}
-			if (entry.code) {
-				head.push('HTTP ' + entry.code);
-			}
-			if (typeof entry.ms !== 'undefined') {
-				head.push(entry.ms + ' ms');
-			}
-			if (entry.sent) {
-				head.push('↑ ' + entry.sent + ' B');
-			}
-			if (entry.received) {
-				head.push('↓ ' + entry.received + ' B');
-			}
+			$('<div class="sf-tg-log-head" />').text(parts.head).appendTo($entry);
 
-			$('<div class="sf-tg-log-head" />').text(head.join(' · ')).appendTo($entry);
-
-			if (entry.message) {
-				$('<div class="sf-tg-log-message" />').text(entry.message).appendTo($entry);
+			if (parts.message) {
+				$('<div class="sf-tg-log-message" />').text(parts.message).appendTo($entry);
 			}
 
 			if (entry.endpoint) {
@@ -802,14 +790,129 @@
 			.toggleClass('sf-tg-status-error', !!isError);
 	}
 
+	/**
+	 * Состояние текущего прогона: очередь полей, накопленные результаты и журнал.
+	 *
+	 * @type {Object|null}
+	 */
+	var runState = null;
+
+	/**
+	 * Строка журнала одной строкой: «шапка | сообщение».
+	 *
+	 * @param {Object} entry Запись журнала.
+	 * @return {{head: string, message: string, status: string}}
+	 */
+	function logLineParts(entry) {
+		var head = [];
+
+		if (entry.field) {
+			head.push(entry.field);
+		}
+		if (entry.code) {
+			head.push('HTTP ' + entry.code);
+		}
+		if (typeof entry.ms !== 'undefined') {
+			head.push(entry.ms + ' ms');
+		}
+		if (entry.sent) {
+			head.push('↑ ' + entry.sent + ' B');
+		}
+		if (entry.received) {
+			head.push('↓ ' + entry.received + ' B');
+		}
+
+		return {
+			head: head.join(' · '),
+			message: entry.message || '',
+			status: entry.status || 'ok'
+		};
+	}
+
+	/**
+	 * Записи журнала для поля, обработанного без обращения к веб-сервису.
+	 *
+	 * @param {Object} row Строка результата с сервера.
+	 * @return {Object}
+	 */
+	function localLogEntry(row) {
+		var message;
+
+		if (row.skipped) {
+			message = row.reason || i18n.skipped;
+		} else if (row.changed) {
+			message = i18n.logChanged;
+		} else {
+			message = i18n.unchanged;
+		}
+
+		return {
+			field: (row.label || row.id) + ' · ' + i18n.engineLocal,
+			status: row.skipped ? 'skip' : 'local',
+			message: message
+		};
+	}
+
+	/**
+	 * Дорисовывает строку в живой журнал.
+	 *
+	 * @param {Object} entry Запись журнала.
+	 */
+	function appendLiveLine(entry) {
+		var parts = logLineParts(entry);
+		var $line = $('<div class="sf-tg-live-line" />').addClass('sf-tg-log-' + parts.status);
+
+		$('<span class="sf-tg-live-head" />').text(parts.head).appendTo($line);
+		if (parts.message) {
+			$('<span class="sf-tg-live-sep" />').text(' | ').appendTo($line);
+			$('<span class="sf-tg-live-message" />').text(parts.message).appendTo($line);
+		}
+
+		var $list = $modal.find('.sf-tg-live-log');
+		$list.append($line);
+		$list.scrollTop($list.prop('scrollHeight'));
+	}
+
+	/**
+	 * Экран прогресса на время обработки.
+	 */
+	function renderProgress() {
+		var $progress = $(
+			'<div class="sf-tg-progress">' +
+				'<div class="sf-tg-progress-track"><span class="sf-tg-progress-fill"></span></div>' +
+				'<p class="sf-tg-progress-label"></p>' +
+				'<div class="sf-tg-live-log" role="log" aria-live="polite"></div>' +
+			'</div>'
+		);
+
+		$modal.find('.sf-tg-body').empty().append($progress);
+	}
+
+	function updateProgress(label) {
+		var st = runState;
+		if (!st) {
+			return;
+		}
+
+		var total = st.payload.length;
+		var done = st.index;
+		var percent = total ? Math.round((done / total) * 100) : 100;
+
+		$modal.find('.sf-tg-progress-fill').css('width', percent + '%');
+		$modal
+			.find('.sf-tg-progress-label')
+			.text(i18n.processing + ' ' + Math.min(done + 1, total) + ' / ' + total + (label ? ' — ' + label : ''));
+	}
+
 	function run() {
 		var diagnostics = [];
 		var fields = collectFields(diagnostics);
 
 		buildModal();
 		openModal();
-		$modal.find('.sf-tg-body').html($('<p class="sf-tg-message" />').text(i18n.loading));
+		$modal.find('.sf-tg-body').empty().append($('<p class="sf-tg-message" />').text(i18n.loading));
 		$modal.find('.sf-tg-apply').prop('disabled', true);
+		rows = [];
 		setStatus('');
 
 		if (!fields.length) {
@@ -819,56 +922,136 @@
 			return;
 		}
 
-		var payload = fields.map(function (field) {
-			return {
-				id: field.id,
-				kind: field.kind,
-				fieldKey: field.fieldKey || '',
-				acfType: field.acfType || '',
-				label: field.label || '',
-				value: field.value
-			};
-		});
+		runState = {
+			fields: fields,
+			payload: fields.map(function (field) {
+				return {
+					id: field.id,
+					kind: field.kind,
+					fieldKey: field.fieldKey || '',
+					acfType: field.acfType || '',
+					label: field.label || '',
+					value: field.value
+				};
+			}),
+			index: 0,
+			rows: [],
+			log: [],
+			used: { remote: 0, local: 0 },
+			diagnostics: diagnostics,
+			aborted: false,
+			// С веб-сервисом идём по одному полю, чтобы был виден каждый обмен;
+			// встроенный типограф успевает обработать пачку за один запрос.
+			batch: 'remote' === data.engine ? 1 : 5
+		};
+
+		renderProgress();
+		updateProgress(runState.payload[0].label);
+		processNext();
+	}
+
+	function processNext() {
+		var st = runState;
+
+		if (!st || st.aborted) {
+			return;
+		}
+
+		if (st.index >= st.payload.length) {
+			finishRun();
+
+			return;
+		}
+
+		var chunk = st.payload.slice(st.index, st.index + st.batch);
 
 		$.post(data.ajaxUrl, {
 			action: 'sf_typograf_preview',
 			post_id: data.postId,
 			nonce: data.nonce,
-			fields: JSON.stringify(payload)
+			fields: JSON.stringify(chunk)
 		})
 			.done(function (response) {
+				// Второй запуск отменяет предыдущую очередь: её ответы игнорируем.
+				if (runState !== st || st.aborted) {
+					return;
+				}
+
 				if (!response || !response.success) {
-					var message = response && response.data && response.data.message ? response.data.message : i18n.error;
-					$modal.find('.sf-tg-body').html($('<p class="sf-tg-message sf-tg-error" />').text(message));
+					failRun(response && response.data && response.data.message ? response.data.message : i18n.error);
 
 					return;
 				}
 
-				rows = response.data.fields.map(function (row, index) {
-					row.el = fields[index] && fields[index].id === row.id ? fields[index].el : null;
+				(response.data.fields || []).forEach(function (row) {
+					st.rows.push(row);
 
-					if (!row.el) {
-						var match = fields.filter(function (field) {
-							return field.id === row.id;
-						})[0];
-						row.el = match ? match.el : null;
-					}
-
-					return row;
+					var entries = row.log && row.log.length ? row.log : [localLogEntry(row)];
+					entries.forEach(function (entry) {
+						if (row.log && row.log.length) {
+							st.log.push(entry);
+						}
+						appendLiveLine(entry);
+					});
 				});
 
-				renderRows();
-				renderEngineSummary(response.data);
-				renderLog(response.data);
-				renderDiagnostics(diagnostics);
+				if (response.data.used) {
+					st.used.remote += response.data.used.remote || 0;
+					st.used.local += response.data.used.local || 0;
+				}
+
+				st.index += chunk.length;
+				updateProgress(st.payload[st.index] ? st.payload[st.index].label : '');
+				processNext();
 			})
 			.fail(function (xhr) {
+				if (runState !== st || st.aborted) {
+					return;
+				}
+
 				var message = i18n.error;
 				if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
 					message = xhr.responseJSON.data.message;
 				}
-				$modal.find('.sf-tg-body').html($('<p class="sf-tg-message sf-tg-error" />').text(message));
+				failRun(message);
 			});
+	}
+
+	function failRun(message) {
+		var st = runState;
+
+		if (st) {
+			st.aborted = true;
+		}
+
+		$modal.find('.sf-tg-progress-label').text(message).addClass('sf-tg-error');
+		$modal.find('.sf-tg-progress-fill').addClass('sf-tg-progress-failed');
+	}
+
+	function finishRun() {
+		var st = runState;
+
+		if (!st) {
+			return;
+		}
+
+		rows = st.rows.map(function (row, index) {
+			row.el = st.fields[index] && st.fields[index].id === row.id ? st.fields[index].el : null;
+
+			if (!row.el) {
+				var match = st.fields.filter(function (field) {
+					return field.id === row.id;
+				})[0];
+				row.el = match ? match.el : null;
+			}
+
+			return row;
+		});
+
+		renderRows();
+		renderEngineSummary({ used: st.used });
+		renderLog({ engine: data.engine, log: st.log });
+		renderDiagnostics(st.diagnostics);
 	}
 
 	function applyField(row) {
