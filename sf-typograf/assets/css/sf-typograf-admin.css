@@ -1,0 +1,282 @@
+/**
+ * SF Typograf — стили админки.
+ */
+
+/* Метабокс */
+
+.sf-typograf-box .sf-typograf-run {
+	width: 100%;
+	text-align: center;
+}
+
+.sf-typograf-box .sf-typograf-excluded-note {
+	color: #996800;
+}
+
+/* Модальное окно */
+
+body.sf-tg-modal-open {
+	overflow: hidden;
+}
+
+.sf-tg-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 160000;
+	background: rgba(0, 0, 0, 0.6);
+	padding: 24px;
+	box-sizing: border-box;
+}
+
+.sf-tg-overlay.is-open {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.sf-tg-modal {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	max-width: 1400px;
+	max-height: 100%;
+	background: #fff;
+	border-radius: 4px;
+	box-shadow: 0 4px 30px rgba(0, 0, 0, 0.35);
+}
+
+.sf-tg-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.sf-tg-header h2 {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.4;
+}
+
+.sf-tg-close {
+	background: none;
+	border: 0;
+	cursor: pointer;
+	font-size: 24px;
+	line-height: 1;
+	padding: 0 4px;
+	color: #50575e;
+}
+
+.sf-tg-close:hover {
+	color: #d63638;
+}
+
+.sf-tg-toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	padding: 10px 16px;
+	border-bottom: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.sf-tg-toolbar .sf-tg-legend {
+	margin-left: auto;
+	color: #646970;
+	font-size: 12px;
+}
+
+.sf-tg-only-changed {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.sf-tg-body {
+	flex: 1 1 auto;
+	overflow: auto;
+	padding: 0;
+}
+
+.sf-tg-message {
+	margin: 0;
+	padding: 24px 16px;
+	color: #50575e;
+}
+
+.sf-tg-error {
+	color: #d63638;
+}
+
+.sf-tg-table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+.sf-tg-table th,
+.sf-tg-table td {
+	border-bottom: 1px solid #dcdcde;
+	padding: 10px 12px;
+	vertical-align: top;
+	text-align: left;
+}
+
+.sf-tg-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: #fff;
+	border-bottom: 2px solid #c3c4c7;
+	font-weight: 600;
+}
+
+.sf-tg-col-check {
+	width: 36px;
+}
+
+.sf-tg-col-name {
+	width: 20%;
+}
+
+.sf-tg-col-value {
+	width: calc(40% - 18px);
+}
+
+.sf-tg-col-name strong {
+	display: block;
+}
+
+.sf-tg-key {
+	display: block;
+	margin-top: 2px;
+	color: #787c82;
+	font-size: 11px;
+	word-break: break-all;
+}
+
+.sf-tg-badge {
+	display: inline-block;
+	margin-top: 6px;
+	padding: 1px 6px;
+	border-radius: 9px;
+	background: #f0f0f1;
+	color: #50575e;
+	font-size: 11px;
+}
+
+.sf-tg-badge-skip {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+.sf-tg-reason {
+	display: block;
+	margin-top: 4px;
+	color: #b32d2e;
+	font-size: 11px;
+}
+
+.sf-tg-table pre {
+	margin: 0;
+	max-height: 320px;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.sf-tg-table ins {
+	background: #d7f0d7;
+	text-decoration: none;
+	border-radius: 2px;
+}
+
+.sf-tg-table del {
+	background: #f7d4d6;
+	text-decoration: line-through;
+	border-radius: 2px;
+}
+
+.sf-tg-nbsp {
+	color: #2271b1;
+	background: #e5f0fa;
+	border-radius: 2px;
+}
+
+.sf-tg-skipped {
+	background: #fcf9e8;
+}
+
+.sf-tg-skipped .sf-tg-col-value pre {
+	color: #787c82;
+}
+
+.sf-tg-unchanged .sf-tg-col-value.sf-tg-empty pre,
+.sf-tg-skipped .sf-tg-col-value.sf-tg-empty pre {
+	opacity: 0.55;
+}
+
+.sf-tg-hide-unchanged .sf-tg-unchanged {
+	display: none;
+}
+
+.sf-tg-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 16px;
+	border-top: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.sf-tg-status {
+	color: #50575e;
+}
+
+.sf-tg-status-error {
+	color: #d63638;
+	font-weight: 600;
+}
+
+.sf-tg-notice-floating {
+	position: fixed;
+	right: 20px;
+	bottom: 20px;
+	z-index: 160001;
+	max-width: 360px;
+}
+
+@media screen and (max-width: 782px) {
+	.sf-tg-overlay {
+		padding: 8px;
+	}
+
+	.sf-tg-table,
+	.sf-tg-table thead,
+	.sf-tg-table tbody,
+	.sf-tg-table tr,
+	.sf-tg-table td {
+		display: block;
+		width: auto;
+	}
+
+	.sf-tg-table thead {
+		display: none;
+	}
+
+	.sf-tg-table tr {
+		border-bottom: 3px solid #c3c4c7;
+	}
+
+	.sf-tg-table td {
+		border-bottom: 0;
+	}
+}

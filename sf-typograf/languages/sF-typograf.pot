@@ -1,0 +1,282 @@
+# Copyright (C) 2026 Saytformat
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: SF Typograf 1.0.0\n"
+"Report-Msgid-Bugs-To: https://web-format.net\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11) ? 0 : ((n%10>=2 && n%10<=4 && (n%100<12 || n%100>14)) ? 1 : 2);\n"
+"X-Domain: sF-typograf\n"
+
+#: includes/class-sf-typograf-remote.php:165
+msgid "Веб-сервис «Типограф» вернул код %d."
+msgstr ""
+
+#: includes/class-sf-typograf-remote.php:175
+msgid "Не удалось разобрать ответ веб-сервиса «Типограф»."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:32
+msgid "Типографика"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:54
+msgid "Оттипографить"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:58
+msgid "Исправит кавычки, тире, спецсимволы и привязки в контенте редактора и текстовых полях ACF. Перед применением покажет, что именно изменится."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:124
+msgid "Предпросмотр типографики"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:125
+msgid "Поле"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:126
+msgid "Текущее значение"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:127
+msgid "После типографа"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:128
+msgid "Применить"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:129
+msgid "Отмена"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:130
+msgid "Закрыть"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:131
+msgid "Отметить все"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:132
+msgid "Снять все"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:133
+msgid "Показывать только изменённые поля"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:134
+msgid "Обработка текста…"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:135
+msgid "Не найдено ни одного текстового поля для обработки."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:136
+msgid "Типографика уже в порядке: изменений нет."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:137
+msgid "Без изменений"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:138
+msgid "Пропущено"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:139
+msgid "Ошибка обработки"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:140
+msgid "Изменения внесены. Не забудьте сохранить страницу."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:141
+msgid "Не отмечено ни одного поля."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:142
+msgid "Контент редактора"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:143
+msgid "Заголовок"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:144
+msgid "Поле ACF"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:145
+msgid "Выбор полей сохранён для этой страницы."
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:146
+msgid "· и &nbsp; — неразрывный пробел"
+msgstr ""
+
+#: includes/class-sf-typograf-admin.php:65
+msgid "Для этой страницы из обработки исключено %d поле."
+msgid_plural "Для этой страницы из обработки исключено полей: %d."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: includes/class-sf-typograf-settings.php:121 includes/class-sf-typograf-settings.php:122 includes/class-sf-typograf-settings.php:215
+msgid "SF Typograf"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:157
+msgid "Настройки"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:205
+msgid "Знаки в тексте и спецсимволы: (C) → ©, (R) → ®, (TM) → ™, ... → …, +- → ±, 2x3 → 2×3"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:206
+msgid "Кавычки: «ёлочки» и „лапки“ вместо программистских"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:207
+msgid "Тире: дефис между словами заменяется длинным тире"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:208
+msgid "Числовые диапазоны: 1990-2000 → 1990–2000 (короткое тире)"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:209
+msgid "Привязки: неразрывные пробелы после предлогов, у инициалов, чисел, знаков № и §"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:210
+msgid "Пробелы: лишние пробелы и пробелы перед знаками препинания"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:211
+msgid "Неразрывные диапазоны &lt;nobr&gt;: телефоны и слова через дефис (только для контента редактора)"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:222
+msgid "Движок"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:227
+msgid "Встроенный типограф (работает локально, без внешних запросов)"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:231
+msgid "Веб-сервис «Типограф» Студии Артемия Лебедева"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:234
+msgid "При недоступности веб-сервиса плагин автоматически использует встроенный типограф."
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:240
+msgid "Стиль кавычек"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:244
+msgid "Русские: «…» и внутренние „…“"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:248
+msgid "Английские: “…” и внутренние ‘…’"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:253
+msgid "Правила"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:266
+msgid "Типы записей"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:276
+msgid "Где показывать кнопку «Оттипографить»."
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:281
+msgid "Заголовок записи"
+msgstr ""
+
+#: includes/class-sf-typograf-settings.php:285
+msgid "Показывать заголовок записи в окне предпросмотра"
+msgstr ""
+
+#: includes/class-sf-typograf-ajax.php:33
+msgid "Проверка безопасности не пройдена. Обновите страницу."
+msgstr ""
+
+#: includes/class-sf-typograf-ajax.php:37
+msgid "Недостаточно прав для редактирования этой записи."
+msgstr ""
+
+#: includes/class-sf-typograf-ajax.php:55
+msgid "Не удалось прочитать список полей."
+msgstr ""
+
+#: includes/class-sf-typograf-ajax.php:216
+msgid "Не удалось прочитать состояния полей."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:70
+msgid "ACF не активен."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:78
+msgid "Тип поля не подтверждён — поле пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:87
+msgid "Поле типа «%s» не является текстовым — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:107
+msgid "Значение не является строкой."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:113
+msgid "Пустое значение."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:118
+msgid "Похоже на ссылку или путь — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:122
+msgid "Похоже на e-mail — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:127
+msgid "Похоже на имя файла — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:132
+msgid "Значение не содержит текста — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:137
+msgid "Сериализованные данные — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:141
+msgid "Похоже на JSON — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:148
+msgid "Только шорткод — пропущено."
+msgstr ""
+
+#: includes/class-sf-typograf-fields.php:154
+msgid "Нет текста — пропущено."
+msgstr ""

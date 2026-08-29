@@ -1,0 +1,759 @@
+/**
+ * SF Typograf — интерфейс кнопки «Оттипографить».
+ *
+ * Собирает значения контента редактора и текстовых полей ACF,
+ * показывает окно предпросмотра с построчным сравнением
+ * и вносит изменения только в отмеченные поля.
+ *
+ * @package SF_Typograf
+ */
+(function ($) {
+	'use strict';
+
+	var data = window.sfTypografData || {};
+	var i18n = data.i18n || {};
+	var $modal = null;
+	var rows = [];
+
+	/* -----------------------------------------------------------------
+	 * Определение редактора
+	 * -------------------------------------------------------------- */
+
+	function isBlockEditor() {
+		return !!(
+			window.wp &&
+			wp.data &&
+			typeof wp.data.select === 'function' &&
+			wp.data.select('core/editor') &&
+			typeof wp.data.select('core/editor').getEditedPostContent === 'function' &&
+			document.getElementById('editor')
+		);
+	}
+
+	function getEditorContent() {
+		if (isBlockEditor()) {
+			return wp.data.select('core/editor').getEditedPostContent();
+		}
+
+		if (window.tinymce) {
+			var ed = tinymce.get('content');
+			if (ed && !ed.isHidden()) {
+				return ed.getContent();
+			}
+		}
+
+		var $textarea = $('#content');
+
+		return $textarea.length ? $textarea.val() : null;
+	}
+
+	function setEditorContent(value) {
+		if (isBlockEditor()) {
+			try {
+				var blocks = wp.blocks.parse(value);
+				var dispatcher = wp.data.dispatch('core/block-editor') || wp.data.dispatch('core/editor');
+				dispatcher.resetBlocks(blocks);
+
+				return true;
+			} catch (e) {
+				window.console && console.error('SF Typograf:', e);
+
+				return false;
+			}
+		}
+
+		if (window.tinymce) {
+			var ed = tinymce.get('content');
+			if (ed && !ed.isHidden()) {
+				ed.setContent(value);
+				ed.setDirty(true);
+				ed.fire('change');
+				$('#content').val(value);
+
+				return true;
+			}
+		}
+
+		var $textarea = $('#content');
+		if ($textarea.length) {
+			$textarea.val(value).trigger('change');
+
+			return true;
+		}
+
+		return false;
+	}
+
+	function getPostTitle() {
+		if (isBlockEditor()) {
+			return wp.data.select('core/editor').getEditedPostAttribute('title');
+		}
+
+		var $title = $('#title');
+
+		return $title.length ? $title.val() : null;
+	}
+
+	function setPostTitle(value) {
+		if (isBlockEditor()) {
+			wp.data.dispatch('core/editor').editPost({ title: value });
+
+			return true;
+		}
+
+		var $title = $('#title');
+		if ($title.length) {
+			$title.val(value).trigger('change');
+			$('#title-prompt-text').addClass('screen-reader-text');
+
+			return true;
+		}
+
+		return false;
+	}
+
+	/* -----------------------------------------------------------------
+	 * Сбор полей
+	 * -------------------------------------------------------------- */
+
+	function acfLabel(fieldEl) {
+		var parts = [];
+		var el = fieldEl;
+
+		while (el && el.nodeType === 1) {
+			if (el.classList.contains('acf-field')) {
+				var label = el.querySelector('.acf-label label');
+				if (label && label.closest('.acf-field') === el) {
+					var text = $.trim(label.textContent);
+					if (text) {
+						parts.unshift(text);
+					}
+				}
+			}
+
+			if (el.classList.contains('acf-row')) {
+				var siblings = el.parentElement
+					? el.parentElement.querySelectorAll(':scope > .acf-row:not(.acf-clone)')
+					: [];
+				var index = Array.prototype.indexOf.call(siblings, el);
+				if (index >= 0) {
+					parts.unshift('#' + (index + 1));
+				}
+			}
+
+			el = el.parentElement;
+		}
+
+		return parts.join(' → ');
+	}
+
+	function collectAcfFields() {
+		var allowed = data.allowedAcfTypes || ['text', 'textarea'];
+		var selector = allowed
+			.map(function (type) {
+				return '.acf-field[data-type="' + type + '"]';
+			})
+			.join(', ');
+
+		if (!selector) {
+			return [];
+		}
+
+		var fields = [];
+
+		$(selector).each(function () {
+			var fieldEl = this;
+
+			// Шаблоны строк повторителя и экран редактирования полей — пропускаем.
+			if (fieldEl.closest('.acf-clone') || fieldEl.closest('.acf-field-object')) {
+				return;
+			}
+
+			var key = fieldEl.getAttribute('data-key');
+			if (!key || key.indexOf('field_') !== 0) {
+				return;
+			}
+
+			var input = fieldEl.querySelector(
+				':scope > .acf-input input[type="text"], :scope > .acf-input textarea, ' +
+					':scope > .acf-input > .acf-input-wrap > input[type="text"], ' +
+					':scope > .acf-input > .acf-input-wrap > textarea'
+			);
+
+			if (!input || input.disabled || input.readOnly) {
+				return;
+			}
+
+			var name = input.getAttribute('name');
+			if (!name) {
+				return;
+			}
+
+			fields.push({
+				id: name,
+				kind: 'acf',
+				fieldKey: key,
+				label: acfLabel(fieldEl) || name,
+				value: input.value,
+				el: input
+			});
+		});
+
+		return fields;
+	}
+
+	function collectFields() {
+		var fields = [];
+
+		if (data.processTitle) {
+			var title = getPostTitle();
+			if (typeof title === 'string') {
+				fields.push({
+					id: 'post_title',
+					kind: 'title',
+					label: i18n.postTitle,
+					value: title
+				});
+			}
+		}
+
+		var content = getEditorContent();
+		if (typeof content === 'string') {
+			fields.push({
+				id: 'post_content',
+				kind: 'editor',
+				label: i18n.postContent,
+				value: content
+			});
+		}
+
+		return fields.concat(collectAcfFields());
+	}
+
+	/* -----------------------------------------------------------------
+	 * Сравнение значений
+	 * -------------------------------------------------------------- */
+
+	function escapeHtml(str) {
+		return String(str)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	}
+
+	/**
+	 * Делает невидимые символы видимыми.
+	 *
+	 * @param {string} html Экранированный HTML.
+	 * @return {string}
+	 */
+	function showInvisibles(html) {
+		return html
+			.replace(/\u00a0/g, '<span class="sf-tg-nbsp" title="nbsp">\u00b7</span>')
+			.replace(/&amp;nbsp;/g, '<span class="sf-tg-nbsp">&amp;nbsp;</span>');
+	}
+
+	function lcsMatrixDiff(a, b) {
+		var n = a.length;
+		var m = b.length;
+		var i;
+		var j;
+
+		// Общее начало и конец не сравниваем.
+		var start = 0;
+		while (start < n && start < m && a[start] === b[start]) {
+			start++;
+		}
+
+		var endA = n;
+		var endB = m;
+		while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
+			endA--;
+			endB--;
+		}
+
+		var midA = a.slice(start, endA);
+		var midB = b.slice(start, endB);
+		var result = [];
+
+		for (i = 0; i < start; i++) {
+			result.push({ op: '=', a: a[i], b: b[i] });
+		}
+
+		if (midA.length * midB.length > 250000) {
+			// Слишком большой фрагмент — помечаем его целиком.
+			if (midA.length || midB.length) {
+				result.push({ op: '~', a: midA.join(''), b: midB.join('') });
+			}
+		} else {
+			var table = [];
+			for (i = 0; i <= midA.length; i++) {
+				table[i] = new Array(midB.length + 1).fill(0);
+			}
+			for (i = midA.length - 1; i >= 0; i--) {
+				for (j = midB.length - 1; j >= 0; j--) {
+					table[i][j] =
+						midA[i] === midB[j]
+							? table[i + 1][j + 1] + 1
+							: Math.max(table[i + 1][j], table[i][j + 1]);
+				}
+			}
+
+			i = 0;
+			j = 0;
+			while (i < midA.length && j < midB.length) {
+				if (midA[i] === midB[j]) {
+					result.push({ op: '=', a: midA[i], b: midB[j] });
+					i++;
+					j++;
+				} else if (table[i + 1][j] >= table[i][j + 1]) {
+					result.push({ op: '-', a: midA[i], b: '' });
+					i++;
+				} else {
+					result.push({ op: '+', a: '', b: midB[j] });
+					j++;
+				}
+			}
+			while (i < midA.length) {
+				result.push({ op: '-', a: midA[i], b: '' });
+				i++;
+			}
+			while (j < midB.length) {
+				result.push({ op: '+', a: '', b: midB[j] });
+				j++;
+			}
+		}
+
+		for (i = endA; i < n; i++) {
+			result.push({ op: '=', a: a[i], b: b[i - endA + endB] });
+		}
+
+		return result;
+	}
+
+	function tokenize(str) {
+		return str.match(/\s+|[^\s]+/g) || [];
+	}
+
+	/**
+	 * Строит два HTML-фрагмента с подсветкой различий.
+	 *
+	 * @param {string} original  Исходный текст.
+	 * @param {string} processed Обработанный текст.
+	 * @return {{left: string, right: string}}
+	 */
+	function buildDiff(original, processed) {
+		var linesA = original.split('\n');
+		var linesB = processed.split('\n');
+		var lineDiff = lcsMatrixDiff(linesA, linesB);
+		var left = '';
+		var right = '';
+		var pending = [];
+
+		function flushPending() {
+			if (!pending.length) {
+				return;
+			}
+
+			var removed = pending.filter(function (p) {
+				return p.op === '-' || p.op === '~';
+			});
+			var added = pending.filter(function (p) {
+				return p.op === '+' || p.op === '~';
+			});
+
+			if (removed.length === added.length) {
+				removed.forEach(function (item, index) {
+					var pair = wordDiff(
+						item.op === '~' ? item.a : item.a,
+						added[index].op === '~' ? added[index].b : added[index].b
+					);
+					left += pair.left + '\n';
+					right += pair.right + '\n';
+				});
+			} else {
+				removed.forEach(function (item) {
+					left += '<del>' + showInvisibles(escapeHtml(item.a)) + '</del>\n';
+				});
+				added.forEach(function (item) {
+					right += '<ins>' + showInvisibles(escapeHtml(item.b)) + '</ins>\n';
+				});
+			}
+
+			pending = [];
+		}
+
+		lineDiff.forEach(function (item) {
+			if (item.op === '=') {
+				flushPending();
+				left += showInvisibles(escapeHtml(item.a)) + '\n';
+				right += showInvisibles(escapeHtml(item.b)) + '\n';
+			} else {
+				pending.push(item);
+			}
+		});
+
+		flushPending();
+
+		return { left: left.replace(/\n$/, ''), right: right.replace(/\n$/, '') };
+	}
+
+	function wordDiff(a, b) {
+		var diff = lcsMatrixDiff(tokenize(a), tokenize(b));
+		var left = '';
+		var right = '';
+
+		diff.forEach(function (item) {
+			if (item.op === '=') {
+				left += showInvisibles(escapeHtml(item.a));
+				right += showInvisibles(escapeHtml(item.b));
+			} else if (item.op === '-') {
+				left += '<del>' + showInvisibles(escapeHtml(item.a)) + '</del>';
+			} else if (item.op === '+') {
+				right += '<ins>' + showInvisibles(escapeHtml(item.b)) + '</ins>';
+			} else {
+				left += '<del>' + showInvisibles(escapeHtml(item.a)) + '</del>';
+				right += '<ins>' + showInvisibles(escapeHtml(item.b)) + '</ins>';
+			}
+		});
+
+		return { left: left, right: right };
+	}
+
+	/* -----------------------------------------------------------------
+	 * Модальное окно
+	 * -------------------------------------------------------------- */
+
+	function buildModal() {
+		if ($modal) {
+			return $modal;
+		}
+
+		$modal = $(
+			'<div class="sf-tg-overlay" role="dialog" aria-modal="true" aria-labelledby="sf-tg-title">' +
+				'<div class="sf-tg-modal">' +
+					'<div class="sf-tg-header">' +
+						'<h2 id="sf-tg-title"></h2>' +
+						'<button type="button" class="sf-tg-close" aria-label=""></button>' +
+					'</div>' +
+					'<div class="sf-tg-toolbar">' +
+						'<button type="button" class="button sf-tg-select-all"></button> ' +
+						'<button type="button" class="button sf-tg-deselect-all"></button> ' +
+						'<label class="sf-tg-only-changed"><input type="checkbox" checked /> <span></span></label>' +
+						'<span class="sf-tg-legend"></span>' +
+					'</div>' +
+					'<div class="sf-tg-body"></div>' +
+					'<div class="sf-tg-footer">' +
+						'<span class="sf-tg-status" role="status"></span>' +
+						'<span class="sf-tg-actions">' +
+							'<button type="button" class="button sf-tg-cancel"></button> ' +
+							'<button type="button" class="button button-primary sf-tg-apply"></button>' +
+						'</span>' +
+					'</div>' +
+				'</div>' +
+			'</div>'
+		);
+
+		$modal.find('#sf-tg-title').text(i18n.modalTitle);
+		$modal.find('.sf-tg-close').attr('aria-label', i18n.close).html('&times;');
+		$modal.find('.sf-tg-select-all').text(i18n.selectAll);
+		$modal.find('.sf-tg-deselect-all').text(i18n.deselectAll);
+		$modal.find('.sf-tg-only-changed span').text(i18n.onlyChanged);
+		$modal.find('.sf-tg-legend').text(i18n.legend);
+		$modal.find('.sf-tg-cancel').text(i18n.cancel);
+		$modal.find('.sf-tg-apply').text(i18n.apply);
+
+		$modal.on('click', '.sf-tg-close, .sf-tg-cancel', closeModal);
+		$modal.on('click', function (event) {
+			if (event.target === $modal[0]) {
+				closeModal();
+			}
+		});
+		$modal.on('click', '.sf-tg-select-all', function () {
+			$modal.find('.sf-tg-check:not(:disabled)').prop('checked', true);
+		});
+		$modal.on('click', '.sf-tg-deselect-all', function () {
+			$modal.find('.sf-tg-check:not(:disabled)').prop('checked', false);
+		});
+		$modal.on('change', '.sf-tg-only-changed input', function () {
+			$modal.toggleClass('sf-tg-hide-unchanged', this.checked);
+		});
+		$modal.on('click', '.sf-tg-apply', applyChanges);
+
+		$(document).on('keydown.sfTypograf', function (event) {
+			if (event.key === 'Escape' && $modal && $modal.is(':visible')) {
+				closeModal();
+			}
+		});
+
+		$('body').append($modal);
+
+		return $modal;
+	}
+
+	function openModal() {
+		buildModal().addClass('is-open');
+		$('body').addClass('sf-tg-modal-open');
+	}
+
+	function closeModal() {
+		if ($modal) {
+			$modal.removeClass('is-open');
+		}
+		$('body').removeClass('sf-tg-modal-open');
+	}
+
+	function renderRows() {
+		var $table = $(
+			'<table class="sf-tg-table">' +
+				'<thead><tr>' +
+					'<th class="sf-tg-col-check"><span class="screen-reader-text">✓</span></th>' +
+					'<th class="sf-tg-col-name"></th>' +
+					'<th class="sf-tg-col-value"></th>' +
+					'<th class="sf-tg-col-value"></th>' +
+				'</tr></thead>' +
+				'<tbody></tbody>' +
+			'</table>'
+		);
+
+		$table.find('.sf-tg-col-name').text(i18n.colField);
+		$table.find('.sf-tg-col-value').eq(0).text(i18n.colCurrent);
+		$table.find('.sf-tg-col-value').eq(1).text(i18n.colNew);
+
+		var $tbody = $table.find('tbody');
+		var changedCount = 0;
+
+		rows.forEach(function (row, index) {
+			var $tr = $('<tr />').attr('data-index', index);
+
+			if (row.skipped) {
+				$tr.addClass('sf-tg-skipped');
+			} else if (row.changed) {
+				$tr.addClass('sf-tg-changed');
+				changedCount++;
+			} else {
+				$tr.addClass('sf-tg-unchanged');
+			}
+
+			var $check = $('<input type="checkbox" class="sf-tg-check" />')
+				.prop('checked', !!row.checked)
+				.attr('data-index', index);
+
+			if (row.skipped) {
+				$check.prop('disabled', true).prop('checked', false);
+			}
+
+			$('<td class="sf-tg-col-check" />').append($check).appendTo($tr);
+
+			var $name = $('<td class="sf-tg-col-name" />');
+			$('<strong />').text(row.label || row.id).appendTo($name);
+			$('<span class="sf-tg-key" />').text(row.id).appendTo($name);
+
+			if (row.skipped) {
+				$('<span class="sf-tg-badge sf-tg-badge-skip" />').text(i18n.skipped).appendTo($name);
+				$('<span class="sf-tg-reason" />').text(row.reason).appendTo($name);
+			} else if (!row.changed) {
+				$('<span class="sf-tg-badge" />').text(i18n.unchanged).appendTo($name);
+			}
+
+			$name.appendTo($tr);
+
+			if (row.skipped || !row.changed) {
+				$('<td class="sf-tg-col-value" />')
+					.append($('<pre />').html(showInvisibles(escapeHtml(row.original))))
+					.appendTo($tr);
+				$('<td class="sf-tg-col-value sf-tg-empty" />')
+					.append($('<pre />').html(showInvisibles(escapeHtml(row.processed))))
+					.appendTo($tr);
+			} else {
+				var diff = buildDiff(row.original, row.processed);
+				$('<td class="sf-tg-col-value" />').append($('<pre />').html(diff.left)).appendTo($tr);
+				$('<td class="sf-tg-col-value" />').append($('<pre />').html(diff.right)).appendTo($tr);
+			}
+
+			$tbody.append($tr);
+		});
+
+		var $body = $modal.find('.sf-tg-body').empty();
+
+		if (!rows.length) {
+			$body.append($('<p class="sf-tg-message" />').text(i18n.noFields));
+			$modal.find('.sf-tg-apply').prop('disabled', true);
+
+			return;
+		}
+
+		if (!changedCount) {
+			$body.append($('<p class="sf-tg-message" />').text(i18n.noChanges));
+		}
+
+		$modal.find('.sf-tg-apply').prop('disabled', !changedCount);
+		$modal.addClass('sf-tg-hide-unchanged');
+		$modal.find('.sf-tg-only-changed input').prop('checked', true);
+		$body.append($table);
+	}
+
+	/* -----------------------------------------------------------------
+	 * Запрос и применение
+	 * -------------------------------------------------------------- */
+
+	function setStatus(message, isError) {
+		$modal
+			.find('.sf-tg-status')
+			.text(message || '')
+			.toggleClass('sf-tg-status-error', !!isError);
+	}
+
+	function run() {
+		var fields = collectFields();
+
+		buildModal();
+		openModal();
+		$modal.find('.sf-tg-body').html($('<p class="sf-tg-message" />').text(i18n.loading));
+		$modal.find('.sf-tg-apply').prop('disabled', true);
+		setStatus('');
+
+		if (!fields.length) {
+			$modal.find('.sf-tg-body').html($('<p class="sf-tg-message" />').text(i18n.noFields));
+
+			return;
+		}
+
+		var payload = fields.map(function (field) {
+			return {
+				id: field.id,
+				kind: field.kind,
+				fieldKey: field.fieldKey || '',
+				label: field.label || '',
+				value: field.value
+			};
+		});
+
+		$.post(data.ajaxUrl, {
+			action: 'sf_typograf_preview',
+			post_id: data.postId,
+			nonce: data.nonce,
+			fields: JSON.stringify(payload)
+		})
+			.done(function (response) {
+				if (!response || !response.success) {
+					var message = response && response.data && response.data.message ? response.data.message : i18n.error;
+					$modal.find('.sf-tg-body').html($('<p class="sf-tg-message sf-tg-error" />').text(message));
+
+					return;
+				}
+
+				rows = response.data.fields.map(function (row, index) {
+					row.el = fields[index] && fields[index].id === row.id ? fields[index].el : null;
+
+					if (!row.el) {
+						var match = fields.filter(function (field) {
+							return field.id === row.id;
+						})[0];
+						row.el = match ? match.el : null;
+					}
+
+					return row;
+				});
+
+				renderRows();
+			})
+			.fail(function (xhr) {
+				var message = i18n.error;
+				if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+					message = xhr.responseJSON.data.message;
+				}
+				$modal.find('.sf-tg-body').html($('<p class="sf-tg-message sf-tg-error" />').text(message));
+			});
+	}
+
+	function applyField(row) {
+		if (row.kind === 'editor') {
+			return setEditorContent(row.processed);
+		}
+
+		if (row.kind === 'title') {
+			return setPostTitle(row.processed);
+		}
+
+		if (row.kind === 'acf' && row.el) {
+			var $input = $(row.el);
+			$input.val(row.processed);
+			row.el.dispatchEvent(new Event('input', { bubbles: true }));
+			$input.trigger('change');
+
+			return true;
+		}
+
+		return false;
+	}
+
+	function applyChanges() {
+		var states = {};
+		var applied = 0;
+
+		$modal.find('.sf-tg-check').each(function () {
+			var index = parseInt(this.getAttribute('data-index'), 10);
+			var row = rows[index];
+
+			if (!row) {
+				return;
+			}
+
+			// Пропущенные поля не влияют на сохранённый выбор.
+			if (!row.skipped) {
+				states[row.id] = this.checked ? 1 : 0;
+			}
+
+			if (this.checked && row.changed && !row.skipped) {
+				if (applyField(row)) {
+					applied++;
+				}
+			}
+		});
+
+		$.post(data.ajaxUrl, {
+			action: 'sf_typograf_save_states',
+			post_id: data.postId,
+			nonce: data.nonce,
+			states: JSON.stringify(states)
+		});
+
+		if (!applied) {
+			setStatus(i18n.nothingChecked, true);
+
+			return;
+		}
+
+		closeModal();
+		showNotice(i18n.applied + ' ' + i18n.statesSaved);
+	}
+
+	function showNotice(message) {
+		var $notice = $('<div class="notice notice-success is-dismissible sf-tg-notice"><p></p></div>');
+		$notice.find('p').text(message);
+
+		var $target = $('.wrap h1').first();
+		if ($target.length) {
+			$target.after($notice);
+		} else {
+			$('body').append($notice.addClass('sf-tg-notice-floating'));
+		}
+
+		window.setTimeout(function () {
+			$notice.fadeOut(400, function () {
+				$notice.remove();
+			});
+		}, 6000);
+	}
+
+	/* -----------------------------------------------------------------
+	 * Инициализация
+	 * -------------------------------------------------------------- */
+
+	$(document).on('click', '#sf-typograf-run, .sf-typograf-run', function (event) {
+		event.preventDefault();
+		run();
+	});
+})(jQuery);
