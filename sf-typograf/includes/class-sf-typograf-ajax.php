@@ -13,6 +13,23 @@ defined( 'ABSPATH' ) || exit;
 class SF_Typograf_Ajax {
 
 	/**
+	 * Журнал обмена с веб-сервисом за текущий запрос.
+	 *
+	 * @var array
+	 */
+	protected $log = array();
+
+	/**
+	 * Чем обработаны поля: сколько веб-сервисом, сколько локально.
+	 *
+	 * @var array
+	 */
+	protected $used = array(
+		'remote' => 0,
+		'local'  => 0,
+	);
+
+	/**
 	 * Регистрация хуков.
 	 */
 	public function __construct() {
@@ -55,8 +72,14 @@ class SF_Typograf_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Не удалось прочитать список полей.', 'sF-typograf' ) ), 400 );
 		}
 
-		$states = SF_Typograf_Fields::get_states( $post_id );
-		$rows   = array();
+		$states     = SF_Typograf_Fields::get_states( $post_id );
+		$settings   = SF_Typograf_Settings::get();
+		$rows       = array();
+		$this->log  = array();
+		$this->used = array(
+			'remote' => 0,
+			'local'  => 0,
+		);
 
 		foreach ( $fields as $field ) {
 			$row = $this->process_field( $field, $states );
@@ -67,8 +90,10 @@ class SF_Typograf_Ajax {
 
 		wp_send_json_success(
 			array(
-				'fields' => $rows,
-				'engine' => SF_Typograf_Settings::get()['engine'],
+				'fields'  => $rows,
+				'engine'  => $settings['engine'],
+				'used'    => $this->used,
+				'log'     => $this->log,
 			)
 		);
 	}
@@ -103,6 +128,7 @@ class SF_Typograf_Ajax {
 			'skipped'   => false,
 			'reason'    => '',
 			'code'      => '',
+			'engine'    => '',
 			'checked'   => SF_Typograf_Fields::is_checked( $states, $state_key ),
 		);
 
@@ -148,15 +174,10 @@ class SF_Typograf_Ajax {
 		 */
 		$context = apply_filters( 'sf_typograf_field_context', $context, $row );
 
-		$processed = $this->typograf( $value, $context );
+		$result = $this->typograf( $value, $context, $label );
 
-		if ( is_wp_error( $processed ) ) {
-			$row['skipped'] = true;
-			$row['reason']  = $processed->get_error_message();
-			$row['code']    = $processed->get_error_code();
-
-			return $row;
-		}
+		$row['engine'] = $result['engine'];
+		$processed     = $result['text'];
 
 		/**
 		 * Фильтр результата обработки поля.
@@ -176,17 +197,24 @@ class SF_Typograf_Ajax {
 	/**
 	 * Прогоняет текст через выбранный движок.
 	 *
+	 * Если выбран веб-сервис «Типограф» и он недоступен, работа выполняется
+	 * встроенным типографом, а причина попадает в журнал.
+	 *
 	 * @param string $text    Текст.
 	 * @param string $context html|text.
-	 * @return string|WP_Error
+	 * @param string $label   Название поля — для журнала.
+	 * @return array {
+	 *     @type string $text   Обработанный текст.
+	 *     @type string $engine remote|local.
+	 * }
 	 */
-	protected function typograf( $text, $context ) {
+	protected function typograf( $text, $context, $label = '' ) {
 		$settings = SF_Typograf_Settings::get();
 
 		if ( 'remote' === $settings['engine'] ) {
 			$remote = new SF_Typograf_Remote(
 				array(
-					'entity_type' => ( 'html' === $context ) ? 1 : 3,
+					'entity_type' => $this->remote_entity_type( $settings['output'] ),
 					'use_br'      => 0,
 					'use_p'       => 0,
 					'max_nobr'    => $settings['nobr'] ? 3 : 0,
@@ -197,16 +225,56 @@ class SF_Typograf_Ajax {
 
 			$result = $remote->process_text( $text );
 
-			if ( ! is_wp_error( $result ) ) {
-				return $result;
+			foreach ( $remote->get_log() as $entry ) {
+				$entry['field'] = $label;
+				$this->log[]    = $entry;
 			}
 
-			// Веб-сервис недоступен — молча переходим на встроенный типограф.
+			if ( ! is_wp_error( $result ) ) {
+				++$this->used['remote'];
+
+				return array(
+					'text'   => $result,
+					'engine' => 'remote',
+				);
+			}
+
+			// Веб-сервис недоступен — доделываем встроенным типографом.
+			$this->log[] = array(
+				'field'   => $label,
+				'status'  => 'fallback',
+				'message' => __( 'Поле обработано встроенным типографом, потому что веб-сервис недоступен.', 'sF-typograf' ),
+			);
 		}
 
 		$engine = new SF_Typograf_Engine( SF_Typograf_Settings::engine_options() );
 
-		return $engine->process( $text, $context );
+		++$this->used['local'];
+
+		return array(
+			'text'   => $engine->process( $text, $context ),
+			'engine' => 'local',
+		);
+	}
+
+	/**
+	 * Значение entityType веб-сервиса для выбранного режима вывода.
+	 *
+	 * 1 — HTML-сущности, 3 — без сущностей, 4 — смешанный режим.
+	 *
+	 * @param string $output entities|mixed|chars.
+	 * @return int
+	 */
+	protected function remote_entity_type( $output ) {
+		if ( 'chars' === $output ) {
+			return 3;
+		}
+
+		if ( 'mixed' === $output ) {
+			return 4;
+		}
+
+		return 1;
 	}
 
 	/**

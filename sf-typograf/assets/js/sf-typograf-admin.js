@@ -14,6 +14,7 @@
 	var i18n = data.i18n || {};
 	var $modal = null;
 	var rows = [];
+	var appliedElements = [];
 
 	/* -----------------------------------------------------------------
 	 * Определение редактора
@@ -504,7 +505,10 @@
 					'</div>' +
 					'<div class="sf-tg-body"></div>' +
 					'<div class="sf-tg-footer">' +
-						'<span class="sf-tg-status" role="status"></span>' +
+						'<span class="sf-tg-footinfo">' +
+							'<span class="sf-tg-status" role="status"></span>' +
+							'<span class="sf-tg-hint"></span>' +
+						'</span>' +
 						'<span class="sf-tg-actions">' +
 							'<button type="button" class="button sf-tg-cancel"></button> ' +
 							'<button type="button" class="button button-primary sf-tg-apply"></button>' +
@@ -520,6 +524,7 @@
 		$modal.find('.sf-tg-deselect-all').text(i18n.deselectAll);
 		$modal.find('.sf-tg-only-changed span').text(i18n.onlyChanged);
 		$modal.find('.sf-tg-legend').text(i18n.legend);
+		$modal.find('.sf-tg-hint').text(i18n.notSaved);
 		$modal.find('.sf-tg-cancel').text(i18n.cancel);
 		$modal.find('.sf-tg-apply').text(i18n.apply);
 
@@ -619,6 +624,10 @@
 				$('<span class="sf-tg-badge" />').text(i18n.unchanged).appendTo($name);
 			}
 
+			if (row.engine === 'remote') {
+				$('<span class="sf-tg-badge sf-tg-badge-remote" />').text(i18n.engineRemote).appendTo($name);
+			}
+
 			$name.appendTo($tr);
 
 			if (row.skipped || !row.changed) {
@@ -654,6 +663,119 @@
 		$modal.addClass('sf-tg-hide-unchanged');
 		$modal.find('.sf-tg-only-changed input').prop('checked', true);
 		$body.append($table);
+	}
+
+	function sprintf1(template, value) {
+		return String(template).replace(/%[sd]/, value);
+	}
+
+	/**
+	 * Строка «чем выполнена работа» в подвале окна.
+	 *
+	 * @param {Object} payload Ответ сервера.
+	 */
+	function renderEngineSummary(payload) {
+		var used = payload.used || {};
+		var parts = [];
+
+		if (used.remote) {
+			parts.push(i18n.engineRemote + ' — ' + sprintf1(i18n.fieldsCount, used.remote));
+		}
+
+		if (used.local) {
+			parts.push(i18n.engineLocal + ' — ' + sprintf1(i18n.fieldsCount, used.local));
+		}
+
+		if (!parts.length) {
+			setStatus('');
+
+			return;
+		}
+
+		setStatus(sprintf1(i18n.engineSummary, parts.join(', ')));
+	}
+
+	/**
+	 * Журнал обмена с веб-сервисом «Типограф».
+	 *
+	 * @param {Object} payload Ответ сервера.
+	 */
+	function renderLog(payload) {
+		var log = payload.log || [];
+
+		// Журнал нужен только когда выбран веб-сервис либо что-то пошло не так.
+		if (payload.engine !== 'remote' && !log.length) {
+			return;
+		}
+
+		var $details = $('<details class="sf-tg-log" />');
+		var errors = log.filter(function (entry) {
+			return entry.status === 'error' || entry.status === 'fallback';
+		}).length;
+
+		var summaryText = i18n.logTitle + ' (' + log.length + ')';
+		if (errors) {
+			summaryText += ' — ' + errors + ' ⚠';
+			$details.addClass('sf-tg-log-has-errors').attr('open', 'open');
+		}
+
+		$('<summary />').text(summaryText).appendTo($details);
+
+		if (!log.length) {
+			$('<p class="sf-tg-log-empty" />').text(i18n.logEmpty).appendTo($details);
+			$modal.find('.sf-tg-body').prepend($details);
+
+			return;
+		}
+
+		log.forEach(function (entry) {
+			var $entry = $('<div class="sf-tg-log-entry" />').addClass('sf-tg-log-' + (entry.status || 'ok'));
+			var head = [];
+
+			if (entry.field) {
+				head.push(entry.field);
+			}
+			if (entry.code) {
+				head.push('HTTP ' + entry.code);
+			}
+			if (typeof entry.ms !== 'undefined') {
+				head.push(entry.ms + ' ms');
+			}
+			if (entry.sent) {
+				head.push('↑ ' + entry.sent + ' B');
+			}
+			if (entry.received) {
+				head.push('↓ ' + entry.received + ' B');
+			}
+
+			$('<div class="sf-tg-log-head" />').text(head.join(' · ')).appendTo($entry);
+
+			if (entry.message) {
+				$('<div class="sf-tg-log-message" />').text(entry.message).appendTo($entry);
+			}
+
+			if (entry.endpoint) {
+				$('<div class="sf-tg-log-endpoint" />').text(entry.endpoint).appendTo($entry);
+			}
+
+			if (entry.request) {
+				$('<details />')
+					.append($('<summary />').text(i18n.logRequest))
+					.append($('<pre />').text(entry.request))
+					.appendTo($entry);
+			}
+
+			if (entry.response) {
+				$('<details />')
+					.append($('<summary />').text(i18n.logResponse))
+					.append($('<pre />').text(entry.response))
+					.appendTo($entry);
+			}
+
+			$entry.appendTo($details);
+		});
+
+		$modal.find('.sf-tg-body').prepend($details);
 	}
 
 	function renderDiagnostics(diagnostics) {
@@ -736,6 +858,8 @@
 				});
 
 				renderRows();
+				renderEngineSummary(response.data);
+				renderLog(response.data);
 				renderDiagnostics(diagnostics);
 			})
 			.fail(function (xhr) {
@@ -772,6 +896,8 @@
 		var states = {};
 		var applied = 0;
 
+		appliedElements = [];
+
 		$modal.find('.sf-tg-check').each(function () {
 			var index = parseInt(this.getAttribute('data-index'), 10);
 			var row = rows[index];
@@ -791,6 +917,9 @@
 			if (this.checked && row.changed && !row.skipped) {
 				if (applyField(row)) {
 					applied++;
+					if (row.el) {
+						appliedElements.push(row.el);
+					}
 				}
 			}
 		});
@@ -809,7 +938,36 @@
 		}
 
 		closeModal();
-		showNotice(i18n.applied + ' ' + i18n.statesSaved);
+		highlightApplied();
+		showNotice(sprintf1(i18n.appliedCount, applied) + ' ' + i18n.statesSaved);
+	}
+
+	/**
+	 * Подсвечивает поля, в которые подставлены новые значения,
+	 * и прокручивает страницу к первому из них.
+	 */
+	function highlightApplied() {
+		var first = null;
+
+		appliedElements.forEach(function (el) {
+			var $wrap = $(el).closest('.acf-field');
+			var $target = $wrap.length ? $wrap : $(el);
+
+			$target.addClass('sf-tg-applied');
+			window.setTimeout(function () {
+				$target.removeClass('sf-tg-applied');
+			}, 4000);
+
+			if (!first) {
+				first = $target[0];
+			}
+		});
+
+		if (first && first.scrollIntoView) {
+			first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+
+		appliedElements = [];
 	}
 
 	function showNotice(message) {

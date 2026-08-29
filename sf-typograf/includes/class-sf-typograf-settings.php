@@ -40,6 +40,7 @@ class SF_Typograf_Settings {
 		return array(
 			'engine'         => 'local',
 			'quotes_style'   => 'ru',
+			'output'         => 'entities',
 			'specials'       => 1,
 			'quotes'         => 1,
 			'dashes'         => 1,
@@ -87,6 +88,7 @@ class SF_Typograf_Settings {
 			'nbsp'         => (bool) $settings['nbsp'],
 			'spaces'       => (bool) $settings['spaces'],
 			'nobr'         => (bool) $settings['nobr'],
+			'output'       => $settings['output'],
 		);
 	}
 
@@ -174,6 +176,9 @@ class SF_Typograf_Settings {
 		$clean['engine']       = ( isset( $input['engine'] ) && 'remote' === $input['engine'] ) ? 'remote' : 'local';
 		$clean['quotes_style'] = ( isset( $input['quotes_style'] ) && 'en' === $input['quotes_style'] ) ? 'en' : 'ru';
 
+		$output          = isset( $input['output'] ) ? (string) $input['output'] : 'entities';
+		$clean['output'] = in_array( $output, array( 'entities', 'mixed', 'chars' ), true ) ? $output : 'entities';
+
 		foreach ( array( 'specials', 'quotes', 'dashes', 'ranges', 'nbsp', 'spaces', 'nobr', 'process_title' ) as $key ) {
 			$clean[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
@@ -247,6 +252,28 @@ class SF_Typograf_Settings {
 								<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[quotes_style]" value="en" <?php checked( 'en', $settings['quotes_style'] ); ?> />
 								<?php esc_html_e( 'Английские: “…” и внутренние ‘…’', 'sF-typograf' ); ?>
 							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Вывод спецсимволов', 'sF-typograf' ); ?></th>
+						<td>
+							<fieldset>
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[output]" value="entities" <?php checked( 'entities', $settings['output'] ); ?> />
+									<?php esc_html_e( 'HTML-сущности: &nbsp; &mdash; &laquo; &copy; — как в «Типографе» Артемия Лебедева', 'sF-typograf' ); ?>
+								</label><br />
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[output]" value="mixed" <?php checked( 'mixed', $settings['output'] ); ?> />
+									<?php esc_html_e( 'Смешанный: сущностью только неразрывный пробел, остальные знаки — символами', 'sF-typograf' ); ?>
+								</label><br />
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[output]" value="chars" <?php checked( 'chars', $settings['output'] ); ?> />
+									<?php esc_html_e( 'Символы UTF-8: — « » © и неразрывный пробел как невидимый символ', 'sF-typograf' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Сущности видно в поле и в редакторе — сразу понятно, что изменилось. Символы UTF-8 короче, но неразрывный пробел неотличим от обычного. Если шаблон выводит поле через esc_html(), сущности отобразятся на сайте как текст — тогда выбирайте символы UTF-8.', 'sF-typograf' ); ?>
+								</p>
+							</fieldset>
 						</td>
 					</tr>
 					<tr>

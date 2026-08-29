@@ -3,7 +3,7 @@
  * Plugin Name:       SF Typograf
  * Plugin URI:        https://web-format.net
  * Description:       Кнопка «Оттипографить» в правой колонке редактора записи/страницы: исправляет типографику в контенте редактора и в текстовых полях ACF с предварительным просмотром изменений.
- * Version:           1.0.1
+ * Version:           1.1.0
  * Requires at least: 7.0
  * Requires PHP:      7.4
  * Author:            Saytformat
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'SF_TYPOGRAF_VERSION', '1.0.1' );
+define( 'SF_TYPOGRAF_VERSION', '1.1.0' );
 define( 'SF_TYPOGRAF_FILE', __FILE__ );
 define( 'SF_TYPOGRAF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SF_TYPOGRAF_URL', plugin_dir_url( __FILE__ ) );

@@ -109,6 +109,46 @@ class SF_Typograf_Engine {
 	);
 
 	/**
+	 * Типографские знаки и их HTML-сущности.
+	 *
+	 * Используется в обе стороны: сущности разбираются перед обработкой,
+	 * чтобы правила видели настоящие символы, и собираются обратно на выходе.
+	 *
+	 * @var array
+	 */
+	protected static $entities = array(
+		"\xC2\xA0" => 'nbsp',
+		'—'          => 'mdash',
+		'–'          => 'ndash',
+		'−'          => 'minus',
+		'«'          => 'laquo',
+		'»'          => 'raquo',
+		'„'          => 'bdquo',
+		'“'          => 'ldquo',
+		'”'          => 'rdquo',
+		'‘'          => 'lsquo',
+		'’'          => 'rsquo',
+		'…'          => 'hellip',
+		'©'          => 'copy',
+		'®'          => 'reg',
+		'™'          => 'trade',
+		'°'          => 'deg',
+		'±'          => 'plusmn',
+		'×'          => 'times',
+		'§'          => 'sect',
+		'¶'          => 'para',
+		'·'          => 'middot',
+		'•'          => 'bull',
+		'€'          => 'euro',
+		'£'          => 'pound',
+		'‰'          => 'permil',
+		'′'          => 'prime',
+		'″'          => 'Prime',
+		'№'          => '#8470',
+		'℗'          => '#8471',
+	);
+
+	/**
 	 * Конструктор.
 	 *
 	 * @param array $options Настройки правил.
@@ -125,6 +165,7 @@ class SF_Typograf_Engine {
 				'nbsp'         => true,  // Привязки неразрывным пробелом.
 				'spaces'       => true,  // Лишние пробелы и пробелы у знаков препинания.
 				'nobr'         => false, // Неразрывные диапазоны <nobr> (только для HTML).
+				'output'       => 'entities', // entities | mixed | chars — чем выводить спецсимволы.
 			)
 		);
 	}
@@ -208,9 +249,9 @@ class SF_Typograf_Engine {
 
 		$this->protected = array();
 
-		// Приводим неразрывные пробелы к единому виду, чтобы правила работали
+		// Разбираем типографские сущности в символы, чтобы правила работали
 		// одинаково на «сыром» тексте и на уже обработанном ранее.
-		$text = preg_replace( '/&(?:nbsp|#160|#xA0|#x00A0);/i', self::NBSP, $text );
+		$text = $this->decode_entities( $text );
 
 		$text = $this->protect_fragments( $text );
 
@@ -239,11 +280,117 @@ class SF_Typograf_Engine {
 			$text = $this->rule_nobr( $text );
 		}
 
-		if ( 'html' === $this->context ) {
-			$text = str_replace( self::NBSP, '&nbsp;', $text );
-		}
+		$text = $this->encode_entities( $text );
 
 		return $this->restore_fragments( $text );
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Сущности
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Разбирает типографские HTML-сущности в символы.
+	 *
+	 * Затрагивает только знаки из карты $entities: &amp;, &lt; и &gt;
+	 * и любые другие сущности остаются как есть.
+	 *
+	 * @param string $text Текст.
+	 * @return string
+	 */
+	protected function decode_entities( $text ) {
+		if ( false === strpos( $text, '&' ) ) {
+			return $text;
+		}
+
+		$named   = array();
+		$numeric = array();
+
+		foreach ( self::$entities as $char => $entity ) {
+			if ( '#' === $entity[0] ) {
+				$numeric[ (int) substr( $entity, 1 ) ] = $char;
+			} else {
+				$named[ $entity ] = $char;
+				$numeric[ self::code_point( $char ) ] = $char;
+			}
+		}
+
+		return preg_replace_callback(
+			'/&(#\d{2,7}|#[xX][0-9a-fA-F]{2,6}|[a-zA-Z][a-zA-Z0-9]{1,9});/',
+			function ( $m ) use ( $named, $numeric ) {
+				$entity = $m[1];
+
+				if ( '#' !== $entity[0] ) {
+					return isset( $named[ $entity ] ) ? $named[ $entity ] : $m[0];
+				}
+
+				$code = ( 'x' === strtolower( $entity[1] ) )
+					? hexdec( substr( $entity, 2 ) )
+					: (int) substr( $entity, 1 );
+
+				return isset( $numeric[ $code ] ) ? $numeric[ $code ] : $m[0];
+			},
+			$text
+		);
+	}
+
+	/**
+	 * Собирает типографские знаки обратно в HTML-сущности.
+	 *
+	 * entities — все знаки сущностями (как в «Типографе» Артемия Лебедева);
+	 * mixed    — сущностями только невидимый неразрывный пробел;
+	 * chars    — ничего не заменяется, остаются символы UTF-8.
+	 *
+	 * @param string $text Текст.
+	 * @return string
+	 */
+	protected function encode_entities( $text ) {
+		$mode = isset( $this->options['output'] ) ? $this->options['output'] : 'entities';
+
+		if ( 'chars' === $mode ) {
+			return $text;
+		}
+
+		if ( 'mixed' === $mode ) {
+			return str_replace( self::NBSP, '&nbsp;', $text );
+		}
+
+		$map = array();
+		foreach ( self::$entities as $char => $entity ) {
+			$map[ $char ] = '&' . $entity . ';';
+		}
+
+		return strtr( $text, $map );
+	}
+
+	/**
+	 * Кодовая точка первого символа строки в UTF-8.
+	 *
+	 * @param string $char Символ.
+	 * @return int
+	 */
+	protected static function code_point( $char ) {
+		$bytes = unpack( 'C*', $char );
+
+		if ( ! $bytes ) {
+			return 0;
+		}
+
+		$count = count( $bytes );
+
+		if ( 1 === $count ) {
+			return $bytes[1];
+		}
+
+		if ( 2 === $count ) {
+			return ( ( $bytes[1] & 0x1F ) << 6 ) | ( $bytes[2] & 0x3F );
+		}
+
+		if ( 3 === $count ) {
+			return ( ( $bytes[1] & 0x0F ) << 12 ) | ( ( $bytes[2] & 0x3F ) << 6 ) | ( $bytes[3] & 0x3F );
+		}
+
+		return ( ( $bytes[1] & 0x07 ) << 18 ) | ( ( $bytes[2] & 0x3F ) << 12 ) | ( ( $bytes[3] & 0x3F ) << 6 ) | ( $bytes[4] & 0x3F );
 	}
 
 	/* ---------------------------------------------------------------------
@@ -571,6 +718,8 @@ class SF_Typograf_Engine {
 			'/(\d)[ \t]+((?:' . $units . ')\.?)(?![\p{L}])/ui'                            => '$1' . $nbsp . '$2',
 			// Число и месяц.
 			'/(\d)[ \t]+(' . $mon . ')(?![\p{L}])/ui'                                     => '$1' . $nbsp . '$2',
+			// Число не отрывается от следующего за ним слова: «за 5 рабочих дней».
+			'/(\d)[ \t]+(?=[\p{L}])/u'                                                    => '$1' . $nbsp,
 			// Знаки номера, параграфа, процента, градуса, валюты.
 			'/([№§])[ \t]*(?=\d)/u'                                                       => '$1' . $nbsp,
 			'/(\d)[ \t]+([%‰°€$₽£])/u'                                                    => '$1' . $nbsp . '$2',
